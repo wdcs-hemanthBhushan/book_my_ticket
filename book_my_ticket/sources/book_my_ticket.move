@@ -78,9 +78,9 @@ module TicketProject::BookMyTicket {
        ticket_price: u64
     }
 
-    struct TicketTypeRemoved has copy, drop {
+    // struct TicketTypeRemoved has copy, drop {
         
-    }
+    // }
 
     struct TicketPurchased has copy, drop {
         ticket_owner: address,

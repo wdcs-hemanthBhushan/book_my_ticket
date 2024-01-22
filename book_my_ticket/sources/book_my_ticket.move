@@ -32,6 +32,7 @@ module TicketProject::BookMyTicket {
 
     //structs
 
+    /// Represents the details of the BookMyTicket platform.
     struct BmtPlatformDetails has key, store {
         id: UID,
         owner: address,
@@ -40,11 +41,12 @@ module TicketProject::BookMyTicket {
         profit: Balance<TICKET_TOKEN>,
         user_tickets: Table<address, vector<UserTicketInfo>>,
         ticket_types: Table<String, u64>,
+        user_blacklist : Table<address , bool>,
         current_ticket_index: u64,
         claim_nonce: u64,
         max_ticket_per_person: u64,
     }
-
+    /// Represents a non-fungible ticket (NFT) on the BookMyTicket platform.
     struct TicketNFT has key, store {
         id: UID,
         ticket_type: String,
@@ -52,7 +54,7 @@ module TicketProject::BookMyTicket {
         ticket_id: u64,
         ticket_claimed: bool
     }
-
+   /// Represents ticket information for a user on the BookMyTicket platform.
     struct UserTicketInfo has copy, drop, store {
         ticket_owner: address,
         ticket_id: u64,
@@ -62,17 +64,18 @@ module TicketProject::BookMyTicket {
 
     // Events
 
+    /// Event emitted when the BookMyTicket platform is initialized.
     struct PlatformInitialized has copy, drop {
         owner: address,
         platform_fee: u64,
         max_ticket_per_person: u64,
     }
-
+    /// Event emitted when profits are claimed on the BookMyTicket platform.
     struct ProfitClaimed has copy, drop {
         claimed_address: address,
         claimed_amount: u64
     }
-
+   /// Event emitted when a new ticket type is added on the BookMyTicket platform.
     struct TicketTypeAdded has copy, drop {
        ticket_type: String,
        ticket_price: u64
@@ -81,14 +84,17 @@ module TicketProject::BookMyTicket {
     // struct TicketTypeRemoved has copy, drop {
         
     // }
-
+    
+    /// Event emitted when a user purchases a ticket on the BookMyTicket platform.
     struct TicketPurchased has copy, drop {
         ticket_owner: address,
         ticket_id: u64,
         ticket_type: String,
     }
 
-
+    /// Initializes the BookMyTicket platform.
+    /// This function initializes the BookMyTicket platform, setting up the owner, platform fee,
+    /// and maximum number of tickets per person.
     fun init(ctx: &mut TxContext) {
         let platform_info = BmtPlatformDetails {
             id: object::new(ctx),
@@ -110,6 +116,9 @@ module TicketProject::BookMyTicket {
             max_ticket_per_person: 5,
         })
     }
+    /// Claims profits on the BookMyTicket platform.
+    /// This function allows the owner of the platform to claim profits. The claim is validated
+    /// using the provided ticket index, claim nonce, signature, and platform details.
 
     public entry fun claim_profit(platform_info: &mut BmtPlatformDetails, ticket_index: u64, claim_nonce: u64, signature: vector<u8>, ctx: &mut TxContext) {
          let sender: address  = tx_context::sender(ctx);
@@ -131,6 +140,9 @@ module TicketProject::BookMyTicket {
         })
     }
 
+    /// Allows users to buy tickets on the BookMyTicket platform.
+    /// This function enables users to purchase tickets on the platform. It checks if the ticket
+    /// type is valid, if the user has sufficient funds, and if the ticket limit has been reached.
     public entry fun buy_tickets(platform_info: &mut BmtPlatformDetails, ticket_amount: Coin<TICKET_TOKEN>, ticket_type: String, ctx: &mut TxContext) {
         let temp_user_list: &mut Table<address, vector<UserTicketInfo>> = &mut platform_info.user_tickets; 
         let temp_ticket_list: &Table<String, u64> = &platform_info.ticket_types; 
@@ -150,7 +162,9 @@ module TicketProject::BookMyTicket {
             purchase_tickets(platform_info, ticket_amount, ticket_type, token_required, ctx);
         }
     }
-
+    /// Handles the actual purchase of tickets on the BookMyTicket platform.
+    /// This function is called to execute the purchase of tickets. It transfers tokens, updates
+    /// balances, and emits events related to the purchase.
     fun purchase_tickets(platform_info: &mut BmtPlatformDetails, ticket_amount: Coin<TICKET_TOKEN>, ticket_type: String, token_required: u64, ctx: &mut TxContext) {
         let paid_amount = coin::value(&ticket_amount);
         let paid_balance: Balance<TICKET_TOKEN> = coin::into_balance(ticket_amount);
@@ -186,7 +200,9 @@ module TicketProject::BookMyTicket {
             ticket_type
         });
     }
-
+    
+    /// Adds new ticket types to the BookMyTicket platform.
+    /// This function allows the platform owner to add new ticket types along with their prices.
     public entry fun add_ticket_types(platform_info: &mut BmtPlatformDetails, ticket_type: vector<String>, price: vector<u64>, ctx: &mut TxContext) {
         let sender: address  = tx_context::sender(ctx);
         let type_len: u64 = vector::length(&ticket_type);
@@ -208,7 +224,8 @@ module TicketProject::BookMyTicket {
             table::add(temp_ticket_type, ticket_type, ticket_price)
         }
     }
-
+    /// Sets the verification public key for the BookMyTicket platform.
+    /// This function allows the platform owner to set the verification public key for signature validation.
     public entry fun set_verify_pk(
         platform_info: &mut BmtPlatformDetails,
         verify_pk_str: String,
@@ -219,6 +236,9 @@ module TicketProject::BookMyTicket {
         platform_info.sig_verify_pk = sui::hex::decode(*string::bytes(&verify_pk_str));
     }
 
+    /// Verifies the signature for claiming profits on the BookMyTicket platform.
+    /// This function verifies the signature for claiming profits using the provided ticket index,
+    /// claim nonce, verification public key, and signature.
     fun verify_claim_signature(ticket_index: u64, claim_nonce: u64, verify_pk: vector<u8>, signature: vector<u8>): bool {
         let ticket_index_bytes = std::bcs::to_bytes(&(ticket_index as u64));
         let nonce_bytes = std::bcs::to_bytes(&(claim_nonce as u64));
@@ -230,4 +250,12 @@ module TicketProject::BookMyTicket {
         );
         verify
     }
+
+#[test]
+
+public fun test_check(){
+    let ctx = tx_context::dummy();
+    
+}
+
 }

@@ -1,11 +1,11 @@
 module TicketProject::ticket_token {
 
   use std::option;
-  use sui::coin::{Self};
+  use sui::coin;
   //use your_project::object::{Self, ID, UID};
   use sui::transfer;
   use sui::tx_context::{Self, TxContext};
-  use sui::url::{Self};
+  use sui::url;
 
   struct TICKET_TOKEN has drop {}
 
@@ -31,5 +31,23 @@ module TicketProject::ticket_token {
     // transfer treasury_cap
     transfer::public_transfer(treasury_cap, sender);
   }
+
+
+
+    //  #[test]
+    // fun coin_tests_metadata(){
+    //     let test_addr: address = @0xA11CE;
+    //     let scenario = test_scenario::begin(test_addr);
+    //     let test = &mut scenario;
+    //     let ctx = test_scenario::ctx(test);
+    //     let witness = TICKET_TOKEN{};
+    //     init(witness,ctx);
+    //     // let check  = test_scenario::take_shared<coin::CoinMetadata>(&scenario);
+
+
+    //  test_scenario::end(scenario);
+
+
+    // }
 
 }

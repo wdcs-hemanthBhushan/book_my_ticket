@@ -2,6 +2,7 @@ module TicketProject::BookMyTicket {
 
     use std::string::{Self, String};
     use std::vector;
+    use std::debug::print;
     use sui::table::{Self, Table};
     use sui::coin::{Self, Coin};
     use sui::balance::{Self, Balance};
@@ -9,13 +10,12 @@ module TicketProject::BookMyTicket {
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
     use sui::ed25519;
-  
-    use sui::event;
+    use sui::event::emit;
     use book_my_ticket_token::ticket_token::TICKET_TOKEN;
    
     // Error constants
-    /// Invalid owner error code    
-    const EINVALID_OWNER: u64 = 0;   
+    // /// Invalid owner error code    
+    // const EINVALID_OWNER: u64 = 0;   
     /// Invalid claimable amount error code               
     const EINVALID_CLAIMABLE_AMOUNT: u64 = 1;  
     /// Invalid length error code    
@@ -27,10 +27,21 @@ module TicketProject::BookMyTicket {
     /// Insufficient amount error code        
     const EINSUFFICIENT_AMOUNT: u64 = 6;
     /// Invalid signature error code          
-    const EINVALID_SIGNATURE: u64 = 7;        
-    
+    const EINVALID_SIGNATURE: u64 = 7;
+    const EUSER_ALREADY_BLACKLISTED : u64 = 8;        
+    const EUSER_NOT_BLOCKED : u64 = 9;
 
     //structs
+    struct OwnerCap has key,store{
+        id : UID ,
+        // admin_cap: AdminCap ,
+        // list_of_admins : vector<AdminCap>
+
+    }
+
+    // struct AdminCap has key,store {
+    //     id : UID
+    // }
 
     /// Represents the details of the BookMyTicket platform.
     struct BmtPlatformDetails has key, store {
@@ -62,31 +73,51 @@ module TicketProject::BookMyTicket {
         amount: u64
     }
 
+
+
     // Events
 
     /// Event emitted when the BookMyTicket platform is initialized.
-    struct PlatformInitialized has copy, drop {
+    struct PlatformInitializedEvent has copy, drop {
         owner: address,
         platform_fee: u64,
         max_ticket_per_person: u64,
     }
     /// Event emitted when profits are claimed on the BookMyTicket platform.
-    struct ProfitClaimed has copy, drop {
+    struct ProfitClaimedEvent has copy, drop {
         claimed_address: address,
         claimed_amount: u64
     }
    /// Event emitted when a new ticket type is added on the BookMyTicket platform.
-    struct TicketTypeAdded has copy, drop {
+    struct TicketTypeAddedEvent has copy, drop {
        ticket_type: String,
        ticket_price: u64
     }
+
+      struct TicketClaimedEvent has copy, drop {
+       ticket_type: String,
+       ticket_id: u64  ,
+       description : vector<u8> ,
+       ticket_claimed : bool 
+    }
+
+    struct BlockUserEvent has copy, drop {
+       user_addr: address ,
+       Blocked: bool
+    }
+
+    struct OwnerChangeEvent has copy, drop {
+        old_owner: address,
+        new_owner: address
+    }
+
 
     // struct TicketTypeRemoved has copy, drop {
         
     // }
     
     /// Event emitted when a user purchases a ticket on the BookMyTicket platform.
-    struct TicketPurchased has copy, drop {
+    struct TicketPurchasedEvent has copy, drop {
         ticket_owner: address,
         ticket_id: u64,
         ticket_type: String,
@@ -104,13 +135,23 @@ module TicketProject::BookMyTicket {
             profit: balance::zero<TICKET_TOKEN>(),
             user_tickets: table::new(ctx),
             ticket_types: table::new(ctx), 
+            user_blacklist:table::new(ctx),
             current_ticket_index: 0,
             claim_nonce: 0,
             max_ticket_per_person: 5,
         };
-        transfer::public_share_object(platform_info);
 
-        event::emit(PlatformInitialized {
+        let owner_cap = OwnerCap{
+            id:object::new(ctx)
+            // admin_cap:AdminCap{} ,
+            // list_of_admins : vector::empty<AdminCap>()
+        };
+        
+        print(&platform_info);
+        transfer::public_share_object(platform_info);
+        transfer::public_transfer(owner_cap , tx_context::sender(ctx));
+
+        emit(PlatformInitializedEvent {
             owner: tx_context::sender(ctx),
             platform_fee: 100000,
             max_ticket_per_person: 5,
@@ -120,9 +161,9 @@ module TicketProject::BookMyTicket {
     /// This function allows the owner of the platform to claim profits. The claim is validated
     /// using the provided ticket index, claim nonce, signature, and platform details.
 
-    public entry fun claim_profit(platform_info: &mut BmtPlatformDetails, ticket_index: u64, claim_nonce: u64, signature: vector<u8>, ctx: &mut TxContext) {
+    public entry fun claim_profit(_ : &OwnerCap, platform_info: &mut BmtPlatformDetails, ticket_index: u64, claim_nonce: u64, signature: vector<u8>, ctx: &mut TxContext) {
          let sender: address  = tx_context::sender(ctx);
-         assert!(sender == platform_info.owner, EINVALID_OWNER);
+        //  assert!(sender == platform_info.owner, EINVALID_OWNER);
 
          assert!(verify_claim_signature(ticket_index, claim_nonce, platform_info.sig_verify_pk, signature), EINVALID_SIGNATURE);
 
@@ -134,7 +175,7 @@ module TicketProject::BookMyTicket {
         transfer::public_transfer(temp_coin, sender); 
         platform_info.claim_nonce = platform_info.claim_nonce + 1;
 
-        event::emit(ProfitClaimed{
+        emit(ProfitClaimedEvent{
             claimed_address: sender,
             claimed_amount: claimable_amount
         })
@@ -159,6 +200,8 @@ module TicketProject::BookMyTicket {
             
             purchase_tickets(platform_info, ticket_amount, ticket_type, token_required, ctx);
         } else {
+
+            table::add(temp_user_list ,sender_addr , vector::empty<UserTicketInfo>());
             purchase_tickets(platform_info, ticket_amount, ticket_type, token_required, ctx);
         }
     }
@@ -194,20 +237,37 @@ module TicketProject::BookMyTicket {
             ticket_claimed: false
         }, sender_addr);
 
-        event::emit(TicketPurchased {
+        emit(TicketPurchasedEvent {
             ticket_owner: sender_addr,
             ticket_id: platform_info.current_ticket_index,
             ticket_type
         });
     }
+
+
+    public entry fun claim_ticket(self : TicketNFT , _ : &mut TxContext){
+        let TicketNFT{ id ,ticket_type ,description,ticket_id ,ticket_claimed} = self ;
+        object::delete(id);
+        
+        emit(TicketClaimedEvent{
+            ticket_type,
+            ticket_id,
+            description ,
+            ticket_claimed  
+            })
+    }
+
+    // public entry fun add_admin(owner_cap : OwnerCap ,admin_addr : address ,ctx : &mut TxContext ){
+
+    // }
     
     /// Adds new ticket types to the BookMyTicket platform.
     /// This function allows the platform owner to add new ticket types along with their prices.
-    public entry fun add_ticket_types(platform_info: &mut BmtPlatformDetails, ticket_type: vector<String>, price: vector<u64>, ctx: &mut TxContext) {
-        let sender: address  = tx_context::sender(ctx);
+    public entry fun add_ticket_types(_ :&OwnerCap , platform_info: &mut BmtPlatformDetails, ticket_type: vector<String>, price: vector<u64>, _ctx: &mut TxContext) {
+        // let sender: address  = tx_context::sender(ctx);
         let type_len: u64 = vector::length(&ticket_type);
         let price_len: u64 = vector::length(&price);
-        assert!(sender == platform_info.owner, EINVALID_OWNER);
+        // assert!(sender == platform_info.owner, EINVALID_OWNER);
         assert!(type_len == price_len, EINVALID_LENGTH);
         
         let temp_ticket_type: &mut Table<String, u64> = &mut platform_info.ticket_types;
@@ -216,7 +276,7 @@ module TicketProject::BookMyTicket {
             let ticket_type: String = vector::pop_back(&mut ticket_type);
             let ticket_price: u64  = vector::pop_back(&mut price);
 
-            event::emit(TicketTypeAdded {
+            emit(TicketTypeAddedEvent {
                 ticket_type,
                 ticket_price
             });
@@ -227,12 +287,13 @@ module TicketProject::BookMyTicket {
     /// Sets the verification public key for the BookMyTicket platform.
     /// This function allows the platform owner to set the verification public key for signature validation.
     public entry fun set_verify_pk(
+        _: &OwnerCap ,
         platform_info: &mut BmtPlatformDetails,
         verify_pk_str: String,
-        ctx: &mut TxContext,
+        // _ctx: &mut TxContext,
     ) {
-        let sender = tx_context::sender(ctx);
-        assert!(sender == platform_info.owner, EINVALID_OWNER);
+        // let sender = tx_context::sender(ctx);
+        // assert!(sender == platform_info.owner, EINVALID_OWNER);
         platform_info.sig_verify_pk = sui::hex::decode(*string::bytes(&verify_pk_str));
     }
 
@@ -251,11 +312,44 @@ module TicketProject::BookMyTicket {
         verify
     }
 
+
+    public entry fun block_user(_:&OwnerCap , platform_info: &mut BmtPlatformDetails , user_addr : address ){
+        let black_list = &mut platform_info.user_blacklist;
+        assert!(!table::contains( black_list, user_addr),EUSER_ALREADY_BLACKLISTED);
+          table::add(black_list , user_addr , true);
+          emit(BlockUserEvent{
+             user_addr: user_addr ,
+             Blocked: true
+          })
+
+    }
+
+     public entry fun unblock_user(_:&OwnerCap , platform_info: &mut BmtPlatformDetails, user_addr : address ){
+        let black_list = &mut platform_info.user_blacklist;
+        assert!(table::contains( black_list, user_addr),EUSER_NOT_BLOCKED);
+          table::remove(black_list , user_addr );
+          emit(BlockUserEvent{
+             user_addr: user_addr ,
+             Blocked: false
+          })
+    }
+
+    public entry fun change_owner(owner_cap : OwnerCap , new_owner : address , ctx : &mut TxContext){
+        transfer::public_transfer(owner_cap , new_owner);
+        emit(OwnerChangeEvent{
+           old_owner : tx_context::sender(ctx),
+           new_owner: new_owner
+        })
+
+
+
+    }
+
 #[test]
 
 public fun test_check(){
     let ctx = tx_context::dummy();
-    
+
 }
 
 }

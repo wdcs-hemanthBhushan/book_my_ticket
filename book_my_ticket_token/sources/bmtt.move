@@ -1,11 +1,11 @@
 module TicketProject::ticket_token {
 
   use std::option;
-  use sui::coin::{Self};
+  use sui::coin;
   //use your_project::object::{Self, ID, UID};
   use sui::transfer;
   use sui::tx_context::{Self, TxContext};
-  use sui::url::{Self};
+  use sui::url;
 
   struct TICKET_TOKEN has drop {}
 

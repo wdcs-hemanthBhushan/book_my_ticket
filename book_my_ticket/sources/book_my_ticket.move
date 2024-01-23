@@ -11,6 +11,7 @@ module TicketProject::BookMyTicket {
     use sui::tx_context::{Self, TxContext};
     use sui::ed25519;
     use sui::event::emit;
+    use sui::vec_map::{Self , VecMap};
     use book_my_ticket_token::ticket_token::TICKET_TOKEN;
    
     // Error constants
@@ -51,7 +52,7 @@ module TicketProject::BookMyTicket {
         platform_fee: u64,
         profit: Balance<TICKET_TOKEN>,
         user_tickets: Table<address, vector<UserTicketInfo>>,
-        ticket_types: Table<String, u64>,
+        ticket_types: VecMap<String , u64>,
         user_blacklist : Table<address , bool>,
         current_ticket_index: u64,
         claim_nonce: u64,
@@ -112,9 +113,10 @@ module TicketProject::BookMyTicket {
     }
 
 
-    // struct TicketTypeRemoved has copy, drop {
-        
-    // }
+    struct TicketTypeRemovedEvent has copy, drop{
+        ticket_type : String,
+        ticket_price : u64
+        }
     
     /// Event emitted when a user purchases a ticket on the BookMyTicket platform.
     struct TicketPurchasedEvent has copy, drop {
@@ -134,7 +136,7 @@ module TicketProject::BookMyTicket {
             platform_fee: 100000,
             profit: balance::zero<TICKET_TOKEN>(),
             user_tickets: table::new(ctx),
-            ticket_types: table::new(ctx), 
+            ticket_types: vec_map::empty<String , u64>(), 
             user_blacklist:table::new(ctx),
             current_ticket_index: 0,
             claim_nonce: 0,
@@ -186,11 +188,11 @@ module TicketProject::BookMyTicket {
     /// type is valid, if the user has sufficient funds, and if the ticket limit has been reached.
     public entry fun buy_tickets(platform_info: &mut BmtPlatformDetails, ticket_amount: Coin<TICKET_TOKEN>, ticket_type: String, ctx: &mut TxContext) {
         let temp_user_list: &mut Table<address, vector<UserTicketInfo>> = &mut platform_info.user_tickets; 
-        let temp_ticket_list: &Table<String, u64> = &platform_info.ticket_types; 
-        let token_required: u64 = *table::borrow(temp_ticket_list, ticket_type);
+        let temp_ticket_list: &VecMap<String, u64> = &platform_info.ticket_types; 
+        let token_required: u64 = *vec_map::get(temp_ticket_list, &ticket_type);
         let sender_addr: address = tx_context::sender(ctx);
 
-        assert!(table::contains(temp_ticket_list, ticket_type), EINVALID_TICKET_TYPE);
+        assert!(vec_map::contains(temp_ticket_list, &ticket_type), EINVALID_TICKET_TYPE);
         assert!(coin::value(&ticket_amount) >= token_required, EINSUFFICIENT_AMOUNT);
       
         if(table::contains(temp_user_list, sender_addr)) {
@@ -263,26 +265,66 @@ module TicketProject::BookMyTicket {
     
     /// Adds new ticket types to the BookMyTicket platform.
     /// This function allows the platform owner to add new ticket types along with their prices.
-    public entry fun add_ticket_types(_ :&OwnerCap , platform_info: &mut BmtPlatformDetails, ticket_type: vector<String>, price: vector<u64>, _ctx: &mut TxContext) {
+    public entry fun add_ticket_types(_ :&OwnerCap , platform_info: &mut BmtPlatformDetails, ticket_type: vector<String>,ticket_price : vector<u64> , _ctx: &mut TxContext) {
         // let sender: address  = tx_context::sender(ctx);
         let type_len: u64 = vector::length(&ticket_type);
-        let price_len: u64 = vector::length(&price);
-        // assert!(sender == platform_info.owner, EINVALID_OWNER);
-        assert!(type_len == price_len, EINVALID_LENGTH);
+        let price_len: u64 = vector::length(&ticket_price);
+        assert!(type_len == price_len , EINVALID_LENGTH);
         
-        let temp_ticket_type: &mut Table<String, u64> = &mut platform_info.ticket_types;
+        let temp_ticket_type: &mut VecMap<String, u64> = &mut platform_info.ticket_types;
 
         while (!vector::is_empty(&ticket_type)) {
             let ticket_type: String = vector::pop_back(&mut ticket_type);
-            let ticket_price: u64  = vector::pop_back(&mut price);
+            let ticket_price: u64  = vector::pop_back(&mut ticket_price);
 
             emit(TicketTypeAddedEvent {
                 ticket_type,
                 ticket_price
             });
 
-            table::add(temp_ticket_type, ticket_type, ticket_price)
+            vec_map::insert(temp_ticket_type, ticket_type, ticket_price)
         }
+    }
+
+
+    public entry fun remove_ticket_type(_ : &OwnerCap , platform_info: &mut BmtPlatformDetails, ticket_type: vector<String> , _ctx: &mut TxContext){
+            // let sender: address  = tx_context::sender(ctx);
+        let type_len: u64 = vector::length(&ticket_type);
+        assert!(type_len > 0 , EINVALID_LENGTH);
+        
+        let temp_ticket_type: &mut VecMap<String, u64> = &mut platform_info.ticket_types;
+
+        while (!vector::is_empty(&ticket_type)) {
+            let ticket_type: String = vector::pop_back(&mut ticket_type);
+
+            let (ticket_type ,ticket_price ) = vec_map::remove(temp_ticket_type, &ticket_type);
+
+            emit(TicketTypeRemovedEvent {
+                ticket_type,
+                ticket_price
+            });
+        }
+    }
+
+
+
+    public entry fun get_all_ticket_types(platform_info: &mut BmtPlatformDetails):(vector<String> , vector<u64>){
+         let stored_ticket_types : &VecMap<String ,u64> = &platform_info.ticket_types;
+         let ticket_type_size : u64 = vec_map::size(stored_ticket_types);
+         let ticket_types : vector<String> = vector::empty<String>();
+         let ticket_price : vector<u64> = vector::empty<u64>();
+         let i = 0;
+         while(i < ticket_type_size){
+          let (types_temp , price_temp) = vec_map::get_entry_by_idx(stored_ticket_types ,i );
+
+            vector::push_back(&mut ticket_types ,*types_temp);
+            vector::push_back(&mut ticket_price ,*price_temp);
+
+           i = i + 1;
+         };
+
+        (ticket_types ,ticket_price)
+        
     }
     /// Sets the verification public key for the BookMyTicket platform.
     /// This function allows the platform owner to set the verification public key for signature validation.
@@ -292,8 +334,6 @@ module TicketProject::BookMyTicket {
         verify_pk_str: String,
         // _ctx: &mut TxContext,
     ) {
-        // let sender = tx_context::sender(ctx);
-        // assert!(sender == platform_info.owner, EINVALID_OWNER);
         platform_info.sig_verify_pk = sui::hex::decode(*string::bytes(&verify_pk_str));
     }
 
@@ -334,15 +374,13 @@ module TicketProject::BookMyTicket {
           })
     }
 
-    public entry fun change_owner(owner_cap : OwnerCap , new_owner : address , ctx : &mut TxContext){
+    public entry fun change_owner(owner_cap : OwnerCap ,platform_info: &mut BmtPlatformDetails , new_owner : address , ctx : &mut TxContext){
+        platform_info.owner = new_owner;
         transfer::public_transfer(owner_cap , new_owner);
         emit(OwnerChangeEvent{
            old_owner : tx_context::sender(ctx),
            new_owner: new_owner
         })
-
-
-
     }
 
 #[test]

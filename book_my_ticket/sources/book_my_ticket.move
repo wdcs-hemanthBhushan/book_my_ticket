@@ -36,14 +36,10 @@ module TicketProject::BookMyTicket {
     //structs
     struct OwnerCap has key,store{
         id : UID ,
-        // admin_cap: AdminCap ,
-        // list_of_admins : vector<AdminCap>
+        // listed_admins : VecMap<address,bool>
 
     }
 
-    // struct AdminCap has key,store {
-    //     id : UID
-    // }
 
     /// Represents the details of the BookMyTicket platform.
     struct BmtPlatformDetails has key, store {
@@ -126,6 +122,10 @@ module TicketProject::BookMyTicket {
         ticket_type: String,
     }
 
+    // struct AdminAddedEvent has copy , drop {
+    //     admin_addr : address
+    // }
+
     /// Initializes the BookMyTicket platform.
     /// This function initializes the BookMyTicket platform, setting up the owner, platform fee,
     /// and maximum number of tickets per person.
@@ -143,11 +143,11 @@ module TicketProject::BookMyTicket {
             claim_nonce: 0,
             max_ticket_per_person: 5,
         };
+        // let temp_admin_cap = ;
 
         let owner_cap = OwnerCap{
-            id:object::new(ctx)
-            // admin_cap:AdminCap{} ,
-            // list_of_admins : vector::empty<AdminCap>()
+            id:object::new(ctx),
+            // listed_admins : vec_map::empty<address , bool>()
         };
         print(&utf8(b"check this"));
         print(&platform_info);
@@ -200,18 +200,19 @@ module TicketProject::BookMyTicket {
             let user_ticket_info: &mut vector<UserTicketInfo> = table::borrow_mut(temp_user_list, sender_addr);
 
             assert!(vector::length(user_ticket_info) <= platform_info.max_ticket_per_person, ETICKET_LIMIT_EXCEED);
-            
-            purchase_tickets(platform_info, ticket_amount, ticket_type, token_required, ctx);
+           purchase_tickets(platform_info, ticket_amount, ticket_type, token_required, ctx);
+              
         } else {
 
             table::add(temp_user_list ,sender_addr , vector::empty<UserTicketInfo>());
             purchase_tickets(platform_info, ticket_amount, ticket_type, token_required, ctx);
+              
         }
     }
     /// Handles the actual purchase of tickets on the BookMyTicket platform.
     /// This function is called to execute the purchase of tickets. It transfers tokens, updates
     /// balances, and emits events related to the purchase.
-    fun purchase_tickets(platform_info: &mut BmtPlatformDetails, ticket_amount: Coin<TICKET_TOKEN>, ticket_type: String, token_required: u64, ctx: &mut TxContext) {
+    fun purchase_tickets(platform_info: &mut BmtPlatformDetails, ticket_amount: Coin<TICKET_TOKEN>, ticket_type: String, token_required: u64, ctx: &mut TxContext)  {
         let paid_amount = coin::value(&ticket_amount);
         let paid_balance: Balance<TICKET_TOKEN> = coin::into_balance(ticket_amount);
         let sender_addr: address = tx_context::sender(ctx);
@@ -240,11 +241,14 @@ module TicketProject::BookMyTicket {
             ticket_claimed: false
         }, sender_addr);
 
+
+
         emit(TicketPurchasedEvent {
             ticket_owner: sender_addr,
             ticket_id: platform_info.current_ticket_index,
             ticket_type
         });
+        
     }
 
 
@@ -383,6 +387,15 @@ module TicketProject::BookMyTicket {
            new_owner: new_owner
         })
     }
+
+
+    // public entry fun add_admin(owner_cap : &mut OwnerCap , admin_addr:address , type: bool){
+    //     vec_map::insert(&mut owner_cap.list_of_admins , admin_addr , type);
+    //     emit(AdminAddedEvent{
+    //         admin_addr
+    //     })
+
+    // }
 
 // #[test]
 

@@ -95,7 +95,7 @@ module TicketProject::BookMyTicket {
        ticket_price: u64
     }
 
-      struct TicketClaimedEvent has copy, drop {
+    struct TicketClaimedEvent has copy, drop {
        ticket_type: String,
        ticket_id: u64  ,
        description : vector<u8> ,

@@ -32,4 +32,22 @@ module TicketProject::ticket_token {
     transfer::public_transfer(treasury_cap, sender);
   }
 
+
+
+    //  #[test]
+    // fun coin_tests_metadata(){
+    //     let test_addr: address = @0xA11CE;
+    //     let scenario = test_scenario::begin(test_addr);
+    //     let test = &mut scenario;
+    //     let ctx = test_scenario::ctx(test);
+    //     let witness = TICKET_TOKEN{};
+    //     init(witness,ctx);
+    //     // let check  = test_scenario::take_shared<coin::CoinMetadata>(&scenario);
+
+
+    //  test_scenario::end(scenario);
+
+
+    // }
+
 }

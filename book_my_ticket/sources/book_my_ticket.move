@@ -3,6 +3,7 @@ module TicketProject::BookMyTicket {
     use std::string::{Self, String};
     use std::vector;
     use std::debug::print;
+    use std::string::utf8;
     use sui::table::{Self, Table};
     use sui::coin::{Self, Coin};
     use sui::balance::{Self, Balance};
@@ -148,7 +149,7 @@ module TicketProject::BookMyTicket {
             // admin_cap:AdminCap{} ,
             // list_of_admins : vector::empty<AdminCap>()
         };
-        
+        print(&utf8(b"check this"));
         print(&platform_info);
         transfer::public_share_object(platform_info);
         transfer::public_transfer(owner_cap , tx_context::sender(ctx));
@@ -383,11 +384,30 @@ module TicketProject::BookMyTicket {
         })
     }
 
-#[test]
+// #[test]
 
-public fun test_check(){
-    let ctx = tx_context::dummy();
+// public fun test_check(){
 
-}
+//          use sui::test_scenario;
+
+//         // create test addresses representing users
+//         let admin = @0xBABE;
+//         let initial_owner = @0xCAFE;
+//         let final_owner = @0xFACE;
+
+//         // first transaction to emulate module initialization
+//         let scenario_val = test_scenario::begin(admin);
+//         let scenario = &mut scenario_val;
+//          init(test_scenario::ctx(scenario));
+
+//          add_ticket_types()
+       
+//         // test_scenario::next_tx(scenario, admin);
+//         // {
+            
+//         // };
+
+//         test_scenario::end(scenario_val);
+// }
 
 }

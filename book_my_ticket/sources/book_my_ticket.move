@@ -14,7 +14,7 @@ module TicketProject::BookMyTicket {
     use sui::ed25519;
     use sui::event::emit;
     use sui::vec_map::{Self, VecMap};
-    use book_my_ticket_token::ticket_token::TICKET_TOKEN;
+    use TicketProjectToken::ticket_token::TICKET_TOKEN;
 
     // Error constants
     /// Error code for invalid claimable amount.
@@ -45,12 +45,12 @@ module TicketProject::BookMyTicket {
     const EUSER_BLACKLISTED: u64 = 10;
 
 
-    // Struct representing the owner capabilities
+    /// Struct representing the owner capabilities
     struct OwnerCap has key, store {
         id: UID,
     }
 
-    // Struct representing the details of the BookMyTicket platform
+    /// Struct representing the details of the BookMyTicket platform
     struct BmtPlatformDetails has key, store {
         id: UID,
         owner: address,
@@ -65,7 +65,7 @@ module TicketProject::BookMyTicket {
         max_ticket_per_person: u64,
     }
 
-    // Struct representing a non-fungible ticket (NFT)
+    /// Struct representing a non-fungible ticket (NFT)s
     struct TicketNFT has key, store {
         id: UID,
         ticket_type: String,
@@ -74,7 +74,7 @@ module TicketProject::BookMyTicket {
         ticket_claimed: bool,
     }
 
-    // Struct representing ticket information for a user
+    /// Struct representing ticket information for a user
     struct UserTicketInfo has copy, drop, store {
         ticket_owner: address,
         ticket_id: u64,

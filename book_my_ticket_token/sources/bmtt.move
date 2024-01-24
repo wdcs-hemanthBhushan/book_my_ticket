@@ -1,4 +1,4 @@
-module TicketProject::ticket_token {
+module TicketProjectToken::ticket_token {
 
   use std::option;
   use sui::coin;

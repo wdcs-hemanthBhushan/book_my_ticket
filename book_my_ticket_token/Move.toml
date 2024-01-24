@@ -1,10 +1,12 @@
 [package]
 name = "book_my_ticket_token"
+version = "0.0.1"
+published-at = "0x1aadcd7d6183ac324c1e16f8a7abbd03aed97388401a4bca0010638daf409565"
 
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
 
 
 [addresses]
-TicketProject = "0x0"
+TicketProjectToken = "0x1aadcd7d6183ac324c1e16f8a7abbd03aed97388401a4bca0010638daf409565"
 

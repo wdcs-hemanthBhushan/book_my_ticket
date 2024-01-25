@@ -14,7 +14,7 @@ module TicketProject::BookMyTicket {
     use sui::ed25519;
     use sui::event::emit;
     use sui::vec_map::{Self, VecMap};
-    use TicketProjectToken::ticket_token::TICKET_TOKEN;
+    use TicketProjectToken::ticket_token::{TICKET_TOKEN,Check};
 
     // Error constants
     /// Error code for invalid claimable amount.
@@ -135,6 +135,16 @@ module TicketProject::BookMyTicket {
     }
 
 
+    struct CheckT has key  {  
+
+        id:UID ,
+        check: Check,             
+             
+    }
+
+
+
+
     // Initialization function for the BookMyTicket platform
     fun init(ctx: &mut TxContext) {
         // Creating initial platform details
@@ -167,6 +177,13 @@ module TicketProject::BookMyTicket {
             platform_fee: 100000,
             max_ticket_per_person: 5,
         });
+    }
+
+    public entry fun check(check : Check , ctx: &mut TxContext ){
+       transfer::transfer(CheckT{
+        id: object::new(ctx),
+        check
+       } , tx_context::sender(ctx))
     }
 
     // Function to claim profits on the BookMyTicket platform

@@ -1,13 +1,18 @@
 module TicketProjectToken::ticket_token {
-
   use std::option;
-  use sui::coin;
+  use sui::coin::{Self, TreasuryCap};
   //use your_project::object::{Self, ID, UID};
   use sui::transfer;
   use sui::tx_context::{Self, TxContext};
   use sui::url;
+  use sui::object::{Self , UID};
 
   struct TICKET_TOKEN has drop {}
+
+  struct Check has key , store {
+    id : UID ,
+    amount : u64
+  }
 
   fun init(otw: TICKET_TOKEN, ctx: &mut TxContext) {
     let sender = tx_context::sender(ctx);
@@ -30,6 +35,15 @@ module TicketProjectToken::ticket_token {
 
     // transfer treasury_cap
     transfer::public_transfer(treasury_cap, sender);
+  }
+
+  public entry fun mint(treasury_cap : &mut TreasuryCap<TICKET_TOKEN> , amount : u64,recipient: address , ctx : &mut TxContext){
+    coin::mint_and_transfer(treasury_cap ,amount,recipient ,ctx );
+    transfer::share_object(Check{
+      id: object::new(ctx) ,
+      amount 
+    })
+
   }
 
 

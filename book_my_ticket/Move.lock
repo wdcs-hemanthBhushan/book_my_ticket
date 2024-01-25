@@ -2,7 +2,7 @@
 
 [move]
 version = 0
-manifest_digest = "E4A0F646C4AED7106BC0476A4A1C6566E742024C8992DDC2941E6A724391181F"
+manifest_digest = "0EC5CDB80F0723A42A30DE834760A9B56CE657DB4DD627E556D09605D55F2D26"
 deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
 
 dependencies = [
@@ -29,3 +29,8 @@ source = { local = "../book_my_ticket_token" }
 dependencies = [
   { name = "Sui" },
 ]
+
+[move.toolchain-version]
+compiler-version = "1.16.1"
+edition = "legacy"
+flavor = "sui"
